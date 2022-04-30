@@ -1,134 +1,78 @@
-# Facial Expression Recognition
+# :mask: Face-Mask Inpainting :kissing:
 
-## Demo
-The model performs really well in the real world and it has an accuracy of 75% on the test data.
+| | |
+|:-------------------------:|:-------------------------:|
+|<img src="info_imgs/test1.jpg" alt="screen" width="250px" > | <img src="info_imgs/test1.gif" alt="screen" width="250px" > |
+|<img src="info_imgs/test2.jpg" alt="screen" width="250px" > | <img src="info_imgs/test2.gif" alt="screen" width="250px" > |
 
-| ![demo.gif](doc/demo.gif) | 
-|:--:| 
-| *The model has 5 class. (Happy,Sad,Surprise,Angry,Neutral)* |
 
-## Datasets
-The Datasets which I have used in this project are [AffectNet]('http://mohammadmahoor.com/affectnet') and [FER+](https://github.com/microsoft/FERPlus) (which is the same as fer2013 Kaggel but with better labels)
+This project attempted to achieve the paper **[A novel GAN-based network for unmasking of 
+masked face](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9019697)**. The model 
+is designed to remove the face-mask from facial image and inpaint the left-behind region based 
+on a novel GAN-network approach.
 
-The combination of these dataset will have about 300,000 images for the 5 class.
+## Training Environment
+- Google Cloud Platform 
+- GPU (Nvidia Tesla T4) 
+- Python 3.8
 
-| Class         | Number of Images |
-| ------------- |:----------------:|
-| Happy         | 134,626          |
-| Neutral       | 86,518           |
-| Sad           | 29,886           |
-| Angry         | 28,168           |
-| Surprise      | 18,608           |
+## Models Architecture
+<img src="info_imgs/md_archi.png" alt="screen" width="700px" >
 
-## Dependencies
+Rather than using the traditional pix2pix U-Net method, in this work the model consists of two main modules, 
+**map module** and **editing module**.In the first module, we detect the face-mask object and generate a 
+binary segmentation map for data augmentation. In the second module, we train the modified U-Net 
+with two discriminators using masked image and binary segmentation map.
+### Data preparation
+- For collecting the ground truth, we use **[Flickr-Faces-HQ Dataset (FFHQ)](https://github.com/NVlabs/ffhq-dataset)**.
+- For creating the masked images, we use **[MaskTheFace](https://github.com/aqeelanwar/MaskTheFace)** to masking the ground truth. 
 
+In this work, I used around 4k paired images for training map module model, and around 20k images for training editing module model.
+
+## Get Started
+It is recommended to make a **[new virtual environment](https://towardsdatascience.com/manage-your-python-virtual-environment-with-conda-a0d2934d5195)** with **Python 3.8** and install the dependencies. Following steps
+can be taken to download and run the Face-mask inpainting streamlit webapp on local host
+### Clone the repository
 ```
-numpy (1.16.4)
-tensorflow (1.14.0)
-keras (2.2.4)
-opencv (3.4)
+git clone https://github.com/daviddirethucus/Face-Mask_Inpainting.git
 ```
+### Download the trained models
+Since it is not permissable to push the model which is larger than 100MB on Github, so we provide a link to download our trained Facemask Inpainting models: **[Here](https://drive.google.com/drive/folders/1l-5ntQyPi4hy1oc_3BHHTNCY4w4nzfEk?usp=sharing)**
 
-## Haar-Cascade
-
-[Haar cascade classifiers](https://docs.opencv.org/3.4.1/d7/d8b/tutorial_py_face_detection.html) first were proposed by Paul Viola and Michael Jones and uses Haar kernels for extracing features and it uses multiple classifiers one after an other. The classifiers get more complex as data move forward. Each classifier will specify whether the image is maybe from the desired class or it is definitly not in the desired class and if it is maybe from the desired class will pass image forward to the next classifier.
-
-For training these classifiers,first you need to collect images from desired class (positive data in our case face images)  and everything else (negative data) especially from the environment which you want to test your model like chairs, tables, etc.
-(for better result its better to make the images grayscale). Also you need to make a description file for postive and negetive samples. 
-* For positives you need to write in the following format:
-\[filename] \[number of object annotations] \[coordinates of the objects bounding rectangles (x, y, width, height)]
-for example: img/img1.jpg  1  140 100 45 45
-* For negative images you only need to write the file name
-
-After collecting data and creating the two description files, you have to install opencv and its dependencies. Then using following commands you can start training your model:
-
-First you need to create a vector file from the positive image with the following command:
-opencv_createsamples -info \[name of description file] -num \[number of positive samples] -w \[width of the output] -h \[height of the output] -vec \[name of the vector file]
-for example:
-
-```opencv_createsamples -info info/info.lst -num 9000 -w 20 -h 20 -vec positives.vec```
-
-Then after creating the vector file you can start the actuall training with the following command:
-
-```opencv_traincascade -data data -vec positives.vec -bg bg.txt -numPos 7000 -numNeg 3500 -numStages 10 -w 20 -h 20```
-
-I trained the haar cascade with 7000 positive images and 3500 negative images for 21 stage which it make a very few mistakes.
-
-For more information you can reffer to [opencv website](https://docs.opencv.org/3.4.3/dc/d88/tutorial_traincascade.html).
-
-## CNN
-
-The cnn was implemented in Keras with the following architecture:
-
+The path of the trained models should be located at: 
 ```
-Layer (type)                 Output Shape              Param #   
-=================================================================
-conv2d_20 (Conv2D)           (None, 46, 46, 64)        640       
-_________________________________________________________________
-activation_35 (Activation)   (None, 46, 46, 64)        0         
-_________________________________________________________________
-batch_normalization_30 (Batc (None, 46, 46, 64)        256       
-_________________________________________________________________
-max_pooling2d_20 (MaxPooling (None, 23, 23, 64)        0         
-_________________________________________________________________
-conv2d_21 (Conv2D)           (None, 21, 21, 128)       73856     
-_________________________________________________________________
-dropout_10 (Dropout)         (None, 21, 21, 128)       0         
-_________________________________________________________________
-activation_36 (Activation)   (None, 21, 21, 128)       0         
-_________________________________________________________________
-batch_normalization_31 (Batc (None, 21, 21, 128)       512       
-_________________________________________________________________
-max_pooling2d_21 (MaxPooling (None, 10, 10, 128)       0         
-_________________________________________________________________
-conv2d_22 (Conv2D)           (None, 8, 8, 256)         295168    
-_________________________________________________________________
-activation_37 (Activation)   (None, 8, 8, 256)         0         
-_________________________________________________________________
-batch_normalization_32 (Batc (None, 8, 8, 256)         1024      
-_________________________________________________________________
-max_pooling2d_22 (MaxPooling (None, 4, 4, 256)         0         
-_________________________________________________________________
-conv2d_23 (Conv2D)           (None, 2, 2, 256)         590080    
-_________________________________________________________________
-activation_38 (Activation)   (None, 2, 2, 256)         0         
-_________________________________________________________________
-batch_normalization_33 (Batc (None, 2, 2, 256)         1024      
-_________________________________________________________________
-max_pooling2d_23 (MaxPooling (None, 1, 1, 256)         0         
-_________________________________________________________________
-flatten_5 (Flatten)          (None, 256)               0         
-_________________________________________________________________
-dense_15 (Dense)             (None, 128)               32896     
-_________________________________________________________________
-activation_39 (Activation)   (None, 128)               0         
-_________________________________________________________________
-batch_normalization_34 (Batc (None, 128)               512       
-_________________________________________________________________
-dropout_11 (Dropout)         (None, 128)               0         
-_________________________________________________________________
-dense_16 (Dense)             (None, 64)                8256      
-_________________________________________________________________
-activation_40 (Activation)   (None, 64)                0         
-_________________________________________________________________
-batch_normalization_35 (Batc (None, 64)                256       
-_________________________________________________________________
-dense_17 (Dense)             (None, 5)                 325       
-_________________________________________________________________
-activation_41 (Activation)   (None, 5)                 0         
-=================================================================
-Total params: 1,004,805
-Trainable params: 1,003,013
-Non-trainable params: 1,792
+/Face-Mask_Inpainting/models
 ```
+### Install required packages
+The provided requirements.txt file consists the essential packages to install. Use the following command
+```
+cd Face-Mask_Inpainting
+pip install -r requirements.txt
+```
+### Run the stremalit webapp
+```
+cd Face-Mask_Inpainting
+streamlit run main.py
+```
+Copy the **Local URL** / **Network URL** and view it in your browser.
+<img src="info_imgs/terminal_s.png" alt="screen" width="550px" >
 
-## References
-[Rapid Object Detection usinga Boosted Cascade of Simple Features](https://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf)
+### Demo
+|<img src="info_imgs/demo1.png" alt="screen" width="400px" > | <img src="info_imgs/demo2.png" alt="screen" width="400px" > |
 
-[AffectNet: A Database for Facial Expression, Valence, and Arousal Computing in the Wild](https://arxiv.org/abs/1708.03985)
+## Related Project
 
-[Kaggel Challenge](https://www.kaggle.com/c/challenges-in-representation-learning-facial-expression-recognition-challenge)
+## Paper References
+- [A novel GAN-based network for unmasking of masked face](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=9019697)
+- [Generation of Realistic Facemasked Faces With GANs](http://cs230.stanford.edu/projects_winter_2021/reports/70681837.pdf)
+- [U-Net: Convolutional Networks for Biomedical Image Segmentation](https://arxiv.org/pdf/1505.04597.pdf)
+- [Squeeze-and-Excitation Networks](https://arxiv.org/pdf/1709.01507.pdf)
+- [Rethinking Atrous Convolution for Semantic Image Segmentation](https://arxiv.org/pdf/1706.05587.pdf)
+- [Language Modeling with Gated Convolutional Networks](https://arxiv.org/pdf/1612.08083.pdf)
+- [Image Quality Assessment: From Error Visibility to Structural Similarity](https://www.cns.nyu.edu/pub/lcv/wang03-preprint.pdf)
+- [Perceptual Losses for Real-Time Style Transfer and Super-Resolution](https://arxiv.org/pdf/1603.08155.pdf)
 
-
-
-
+## Code References
+- https://github.com/moskomule/senet.pytorch/blob/master/senet/se_module.py#L4
+- https://github.com/VainF/pytorch-msssim
+- https://gist.github.com/alper111/8233cdb0414b4cb5853f2f730ab95a49
